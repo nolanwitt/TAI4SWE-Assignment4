@@ -7,7 +7,7 @@
 
 EvaLoop is a framework for evaluating the robustness of Large Language Models (LLMs) through iterative dual-task cycles. The framework measures how many cycles an LLM can execute before generating code that fails functional testing, providing a quantitative metric for model robustness. It accompanies the paper [*EvaLoop: Assessing LLM Robustness in Programming from a Self-consistency Perspective*](https://arxiv.org/abs/2505.12185); results across models are published on the [leaderboard](https://evalooop.github.io/).
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Installation
 
@@ -50,7 +50,7 @@ evaloop analyze --results_path "results/experiment_results.json" \
                 --judge_api_key_file api.key
 ```
 
-## 🔄 How the Loop Works
+## How the Loop Works
 
 Each evaluation cycle alternates between two tasks:
 
@@ -79,13 +79,13 @@ This is intentional, not an artifact: keeping one assert anchors the function na
 
 | Task type | Config name | Status |
 |---|---|---|
-| Code generation | `code_generation` | ✅ Supported |
-| Code summarization | `code_summarization` | ✅ Supported |
-| Code translation | `code_translation` | 🧪 Experimental — the task class exists, but config/evaluator support is not yet in the public release (`run_code_translation()` raises `NotImplementedError`) |
+| Code generation | `code_generation` | Supported |
+| Code summarization | `code_summarization` | Supported |
+| Code translation | `code_translation` | Experimental — the task class exists, but config/evaluator support is not yet in the public release (`run_code_translation()` raises `NotImplementedError`) |
 
 Want to add your own loop? A new task type is one new file plus a registry entry — no changes to the loop runner. See the [Contributing Guide](CONTRIBUTING.md).
 
-## 🛠️ CLI Reference
+## CLI Reference
 
 ### `evaluate` — Code Generation ↔ Summarization
 
@@ -183,7 +183,7 @@ evaloop list_models
 evaloop validate_setup [--check_gpu=False] [--check_api_keys=False]
 ```
 
-## 🔧 Configuration
+## Configuration
 
 ### Environment Variables
 
@@ -202,7 +202,7 @@ EvaLoop automatically configures models based on their names/paths:
 
 Large models automatically use vLLM for efficient inference when it is installed (`pip install -e ".[vllm]"`).
 
-## 📊 Results and Analysis
+## Results and Analysis
 
 ### Output Structure
 
@@ -236,7 +236,7 @@ Results are saved in JSON format:
 model), `cycle_distribution.png` (histogram of sustained loops) and `success_heatmap.png`
 (sustained loops per task and model, first 50 tasks).
 
-## 📐 Scoring
+## Scoring
 
 The scores below are the ones used in the paper and on the [leaderboard](https://evalooop.github.io/);
 `evaloop analyze` reproduces the published values exactly when given the same results and judge scores.
@@ -344,7 +344,7 @@ results = analyzer.analyze()          # all metrics; results["ASL"]["by_model"][
 The pure metric functions (`asl_semantic`, `asl_pow`, `asl_bias`, `pass_at_k`, `pass_drop`,
 `bucket_similarity`) live in `evaloop.analysis.metrics`.
 
-## 🧪 Advanced Usage
+## Advanced Usage
 
 ### Custom Model Registration
 
@@ -394,7 +394,7 @@ for result in results/batch/*_results.json; do
 done
 ```
 
-## 🤝 Contributing
+## Contributing
 
 We welcome contributions — new loop/task types especially! Please see the [Contributing Guide](CONTRIBUTING.md) for the development setup, the "add a new loop type" walkthrough, and PR expectations.
 
@@ -415,7 +415,7 @@ ruff check evaloop tests
 
 The unit test suite runs without GPU, API keys, or the heavy model dependencies.
 
-## 📖 Citation
+## Citation
 
 If you use EvaLoop in your research, please cite:
 
@@ -429,26 +429,26 @@ If you use EvaLoop in your research, please cite:
 }
 ```
 
-## 📄 License
+## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - Built with [Python Fire](https://github.com/google/python-fire) for CLI interface
 - Uses [vLLM](https://github.com/vllm-project/vllm) for efficient model inference
 - Evaluation dataset from [MBPP](https://github.com/google-research/google-research/tree/master/mbpp)
 - Code testing powered by [EvalPlus](https://github.com/evalplus/evalplus)
 
-## 📞 Support
+## Support
 
-- 🏆 [Leaderboard](https://evalooop.github.io/)
-- 📄 [Paper](https://arxiv.org/abs/2505.12185)
-- 🐛 [Issue Tracker](https://github.com/evalooop/EvaLooop/issues)
+- [Leaderboard](https://evalooop.github.io/)
+- [Paper](https://arxiv.org/abs/2505.12185)
+- [Issue Tracker](https://github.com/evalooop/EvaLooop/issues)
 
 ---
 
-**EvaLoop** - Robust LLM Evaluation Made Simple 🔄
+**EvaLoop** - Robust LLM Evaluation Made Simple 
 
 ---
 
