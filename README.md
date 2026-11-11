@@ -449,3 +449,44 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ---
 
 **EvaLoop** - Robust LLM Evaluation Made Simple 🔄
+
+---
+
+# Extension: HumanEval+ dataset (course Assignment 4, Option A)
+
+Adds HumanEval+ (EvalPlus) as a second dataset for the standard generation <-> summarization loop.
+
+## What was added / modified
+
+New files
+- `evaloop/evaluation/humaneval_testing.py` - HumanEval+ loader + tester (EvalPlus `base` + `plus` suites, a cycle passes only if both pass).
+  Builds the loop prompt in the **same layout as MBPP+** (`"""\n<docstring>\n<assert>\n"""`), where the anchor `assert` is generated from the benchmark's first base test input and the canonical solution's output. This is the HumanEval counterpart of MBPP+'s retained assert line, so the unmodified `CodeSummarizationTask.postprocess` (`splitlines()[-2]`) keeps the signature stable. Imports/helper functions of the original prompt are prepended to the code under test (standard HumanEval prompt+completion protocol).
+- `evaloop/models/openai_compatible.py` - client for any OpenAI-compatible endpoint (Ollama/vLLM) with threaded `batch_generate` (picked up automatically by `BatchEvaluationCycle`).
+- `evaloop/core/prompt_sets.py` - the `assignment` prompt set = the exact templates of the data package (`prompts/task_prompts.md`). **The upstream default summarization prompt differs from the data package** (one sentence starting "write a python function to" vs. "detailed description"), so baseline-comparable runs must use `--prompt_set assignment`.
+- `docker/Dockerfile`, `run_all.sh` - sandbox: generated code only ever executes inside the container.
+- `scripts/make_summary.py`, `scripts/dump_failures.py` - summary.csv builder, failed-loop dumper.
+
+Modified existing files
+- `evaloop/core/evaluator.py`: dataset dispatch (`humaneval_plus`), `max_tasks`, and per-cycle functional tests run in a thread pool (each test is already subprocess-isolated; sequential testing was the bottleneck).
+- `evaloop/core/config.py`, `evaloop/cli.py`: new options `base_url`, `max_workers`, `prompt_set`, `max_tasks`, dataset `humaneval_plus`.
+- `evaloop/models/factory.py`: new type `openai_compatible`; HF/vLLM backends are imported lazily (the eager `import vllm` made the framework unimportable without vLLM).
+
+## Reproduce
+
+```bash
+# 1. models (Ollama on the host, default Q4_K_M quantization)
+ollama pull qwen2.5-coder:7b-instruct && ollama pull qwen2.5-coder:14b-instruct
+# 2. sandbox image
+docker build -t evaloop-sandbox -f docker/Dockerfile .
+# 3. both runs (temperature 0, seed 0, 10 cycles, all 164 HumanEval+ tasks, one run each)
+./run_all.sh            # results/humaneval_plus_qwen2.5-coder-{7b,14b}_code_generation_summarization_results.json
+# 4. summary.csv (baseline rows read from the course data package: loops/qwen2.5-coder-{7b,14b}-instruct.json)
+python scripts/make_summary.py --out summary.csv \
+  --baseline qwen2.5-coder-7b-instruct standard-mbpp-plus <pkg>/loops/qwen2.5-coder-7b-instruct.json \
+  --baseline qwen2.5-coder-14b-instruct standard-mbpp-plus <pkg>/loops/qwen2.5-coder-14b-instruct.json \
+  --run qwen2.5-coder-7b-instruct standard-humaneval-plus results/humaneval_plus_qwen2.5-coder-7b_code_generation_summarization_results.json \
+  --run qwen2.5-coder-14b-instruct standard-humaneval-plus results/humaneval_plus_qwen2.5-coder-14b_code_generation_summarization_results.json
+# 5. failed loops for manual inspection
+python scripts/dump_failures.py results/<run>.json failures_<model>.txt
+```
+`asl_score` in summary.csv = quadratic ASL without semantic weighting, sum_i n_i i^2 / (T*M) (`evaloop.analysis.metrics.asl_pow`); no LLM judge is used. Dependencies: Docker, Ollama (GPU), Python 3.11 image deps in `docker/Dockerfile` (evalplus, openai, fire, ...).
