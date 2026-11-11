@@ -50,7 +50,15 @@ class EvaluationConfig:
     
     # API configuration
     openai_api_key: Optional[str] = None
-    
+    # OpenAI-compatible endpoint (e.g. Ollama: http://host:11434/v1). When set, the model is
+    # served through OpenAICompatibleLLM regardless of its name.
+    base_url: Optional[str] = None
+    max_workers: int = 8
+
+    # Extension options
+    prompt_set: str = "default"          # "default" or "assignment" (see core/prompt_sets.py)
+    max_tasks: Optional[int] = None      # only for smoke tests; None = all tasks
+
     def __post_init__(self):
         """Validate configuration after initialization."""
         if not self.model:
@@ -129,6 +137,18 @@ class EvaluationConfig:
     def _create_model_config(self, model: str) -> Dict[str, Any]:
         """Create configuration for a specific model."""
         # Determine model type based on model name/path
+        if self.base_url:
+            return {
+                "name": self._sanitize_model_name(model),
+                "type": "openai_compatible",
+                "model_id": model,
+                "base_url": self.base_url,
+                "temperature": self.temperature,
+                "top_p": self.top_p,
+                "max_tokens": self.max_new_tokens,
+                "seed": self.seed,
+                "max_workers": self.max_workers,
+            }
         if any(provider in model.lower() for provider in ["gpt", "chatgpt", "openai"]):
             model_type = "openai"
         elif "claude" in model.lower():
@@ -404,6 +424,15 @@ class EvaluationConfig:
     
     def get_task_configs(self, task_type: str = "code_generation_summarization") -> List[Dict[str, Any]]:
         """Generate task configurations based on task type."""
+        if task_type == "code_generation_summarization" and self.prompt_set != "default":
+            from .prompt_sets import PROMPT_SETS
+            if self.prompt_set not in PROMPT_SETS:
+                raise ValueError(f"Unknown prompt_set '{self.prompt_set}'; choose from {['default', *PROMPT_SETS]}")
+            ps = PROMPT_SETS[self.prompt_set]
+            return [
+                {"type": "code_generation", "language": "python", "prompt_template": ps["generation"]},
+                {"type": "code_summarization", "prompt_template": ps["summarization"]},
+            ]
         if task_type == "code_generation_summarization":
             return [
                 {

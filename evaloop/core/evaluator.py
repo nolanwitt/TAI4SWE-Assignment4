@@ -10,6 +10,7 @@ from ..models.factory import ModelFactory
 from ..tasks.factory import TaskFactory
 from ..evaluation.cycle import BatchEvaluationCycle
 from ..evaluation.py_testing import EvalPlusCodeTester, load_mbpp_dataset
+from ..evaluation.humaneval_testing import HumanEvalPlusCodeTester, load_humaneval_dataset
 
 
 class EvaLoopEvaluator:
@@ -84,9 +85,12 @@ class EvaLoopEvaluator:
     
     def _load_dataset(self):
         """Load and prepare the dataset."""
-        py_problems, ground_truth = load_mbpp_dataset()
-        self.logger.info(f"Loaded MBPP dataset with {len(py_problems)} problems")
-        
+        if self.config.dataset == "humaneval_plus":
+            py_problems, ground_truth = load_humaneval_dataset()
+        else:
+            py_problems, ground_truth = load_mbpp_dataset()
+        self.logger.info(f"Loaded {self.config.dataset} dataset with {len(py_problems)} problems")
+
         # Prepare prompts from dataset
         prompts = []
         for task_id, problem in py_problems.items():
@@ -94,12 +98,17 @@ class EvaLoopEvaluator:
                 "task_id": task_id,
                 "prompt": problem["prompt"]
             })
-        
+        if self.config.max_tasks:
+            prompts = prompts[: self.config.max_tasks]
+
         self.logger.info(f"Prepared {len(prompts)} prompts from MBPP dataset")
         return prompts, py_problems
     
     def _create_tester(self, py_problems):
         """Create the code tester."""
+        if self.config.dataset == "humaneval_plus":
+            _, ground_truth = load_humaneval_dataset()
+            return HumanEvalPlusCodeTester(py_problems, ground_truth)
         _, ground_truth = load_mbpp_dataset()  # Get ground truth
         return EvalPlusCodeTester(py_problems, ground_truth)
     
@@ -162,16 +171,23 @@ class EvaLoopEvaluator:
     def _process_cycle_results(self, cycle_output, model_result, tasks, py_problems, tester, current_cycle) -> List[Dict[str, Any]]:
         """Process cycle results and return prompts for next cycle."""
         next_cycle_prompts = []
+
+        # Run the (independent, subprocess-isolated) functional tests of this cycle concurrently.
+        from concurrent.futures import ThreadPoolExecutor
+        import os
+        results_list = cycle_output["cycle_results"]
+        with ThreadPoolExecutor(max_workers=max(1, (os.cpu_count() or 2) - 1)) as pool:
+            successes = list(pool.map(
+                lambda cr: self._test_and_validate_output(
+                    cr, tasks, cr["task_id"], py_problems.get(cr["task_id"]), tester),
+                results_list))
         
-        for cycle_result in cycle_output["cycle_results"]:
+        for cycle_result, success in zip(results_list, successes):
             task_id = cycle_result["task_id"]
-            problem = py_problems.get(task_id)
             
             # Find corresponding prompt result
             prompt_result = next(r for r in model_result["prompt_results"] if r["task_id"] == task_id)
             
-            # Test and validate the code generation output
-            success = self._test_and_validate_output(cycle_result, tasks, task_id, problem, tester)
             cycle_result["success"] = success
             
             # Add cycle result to prompt result

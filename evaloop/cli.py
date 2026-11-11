@@ -92,9 +92,17 @@ class EvaLoopCLI:
         preferred_batch_size: int = 64,
         is_chat_model: bool = True,
         system_prompt: str = "You are a helpful programming assistant.",
+        base_url: Optional[str] = None,
+        max_workers: int = 8,
+        prompt_set: str = "default",
+        max_tasks: Optional[int] = None,
     ) -> Dict[str, Any]:
         """
         Run code generation and summarization evaluation experiment.
+
+        Extension args: dataset may be "mbpp_plus" or "humaneval_plus"; base_url selects an
+        OpenAI-compatible endpoint (e.g. Ollama); prompt_set "assignment" uses the data
+        package's prompt templates; max_tasks limits tasks (smoke tests only).
         
         This method performs iterative cycles of code generation and summarization:
         1. Start with a natural language prompt
@@ -149,9 +157,9 @@ class EvaLoopCLI:
                              --experiment_name "deepseek_robust_test"
         """
         
-        if dataset != "mbpp_plus":
+        if dataset not in ("mbpp_plus", "humaneval_plus"):
             raise ValueError(
-                f"Unsupported dataset: '{dataset}'. Only 'mbpp_plus' is currently supported."
+                f"Unsupported dataset: '{dataset}'. Supported: 'mbpp_plus', 'humaneval_plus'."
             )
 
         from .core.config import EvaluationConfig
@@ -203,6 +211,10 @@ class EvaLoopCLI:
             is_chat_model=is_chat_model,
             system_prompt=system_prompt,
             openai_api_key=openai_api_key,
+            base_url=base_url,
+            max_workers=max_workers,
+            prompt_set=prompt_set,
+            max_tasks=max_tasks,
         )
         # Log model type detection results
         model_config = config.get_model_config()

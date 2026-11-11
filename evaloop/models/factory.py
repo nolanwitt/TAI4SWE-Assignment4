@@ -4,8 +4,6 @@ import logging
 from typing import Dict, Any
 
 from .base import BaseLLM
-from .open_source import HuggingFaceLLM
-from .open_source_vllm import VllmLLM
 from .closed_source import OpenAILLM
 
 
@@ -43,11 +41,16 @@ class ModelFactory:
         self.logger.debug(f"Creating model with config: {sanitized_config}")
         
         if model_type in ["llama", "deepseek", "huggingface", "open_source"]:
+            from .open_source import HuggingFaceLLM  # lazy: heavy optional deps
             return HuggingFaceLLM(model_config)
         elif model_type in ["vllm"]:
+            from .open_source_vllm import VllmLLM  # lazy: needs vllm (Linux+CUDA)
             return VllmLLM(model_config)
         elif model_type in ["openai", "chatgpt", "closed_source"]:
             return OpenAILLM(model_config)
+        elif model_type == "openai_compatible":
+            from .openai_compatible import OpenAICompatibleLLM
+            return OpenAICompatibleLLM(model_config)
         else:
             raise ValueError(f"Unsupported model type: {model_type}")
     
